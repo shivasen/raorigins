@@ -378,8 +378,27 @@ class RaOriginsApp {
 
 // --- YouTube Player API for Contact Page ---
 var player;
+var playerReady = false;
+
+// Helper function to enable the form button
+function enableFormButton() {
+    const submitBtn = document.querySelector('.contact-form button[type="submit"]');
+    if (submitBtn && submitBtn.disabled) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Message';
+    }
+}
+
 function onYouTubeIframeAPIReady() {
   if (document.getElementById('yt-player')) {
+    // Failsafe timer: if the player isn't ready in 8 seconds, enable the form anyway.
+    setTimeout(() => {
+        if (!playerReady) {
+            console.warn("YouTube Player timed out. Enabling form as a fallback.");
+            enableFormButton();
+        }
+    }, 8000);
+
     player = new YT.Player('yt-player', {
       height: '360',
       width: '640',
@@ -392,7 +411,7 @@ function onYouTubeIframeAPIReady() {
         'loop': 0,
         'playsinline': 1,
         'start': 4,
-        'mute': 0,
+        'mute': 1, // Mute the video to allow autoplay
         'rel': 0
       },
       events: {
@@ -400,16 +419,15 @@ function onYouTubeIframeAPIReady() {
         'onStateChange': onPlayerStateChange
       }
     });
+  } else {
+      // If the player element is not on the page, enable the button immediately.
+      enableFormButton();
   }
 }
 
 function onPlayerReady(event) {
-    // Enable the submit button once the player is ready
-    const submitBtn = document.querySelector('.contact-form button[type="submit"]');
-    if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Send Message';
-    }
+    playerReady = true;
+    enableFormButton();
 }
 
 function onPlayerStateChange(event) {
@@ -454,13 +472,13 @@ function handleContactForm(event) {
 
     // Wait for form fade-out transition before playing video
     setTimeout(() => {
-        if (formWrapper && typeof player !== 'undefined' && player.playVideo) {
+        if (formWrapper && playerReady && typeof player !== 'undefined' && player.playVideo) {
             formWrapper.classList.add('video-playing');
             player.playVideo();
         } else {
-            // Fallback if player fails for any reason
-            console.error("YouTube Player not available. Can't play video.");
-            // Manually trigger the success state after a delay
+            // Fallback if player fails for any reason or is not ready
+            console.warn("YouTube Player not ready. Bypassing video and showing success message directly.");
+            // Manually trigger the success state
             onPlayerStateChange({ data: YT.PlayerState.ENDED });
         }
     }, 500); 
